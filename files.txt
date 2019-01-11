@@ -1,0 +1,1 @@
+c:\users\akihide\appdata\roaming\python\python37\site-packages\atomictools-0.0.0-py3.7.egg
