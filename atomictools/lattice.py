@@ -69,7 +69,7 @@ def wigner_seitz(ps):
         
 
 def move_to_wigner_seitz(rs, ws):
-    """over write r in weigner sitz cell"""
+    """r in weigner sitz cell"""
     n = np.clip(np.ceil(rs @ ws.T / np.sum(ws * ws, axis=1) - 0.5), a_max=0, a_min=None)
     return rs - n @ ws
 

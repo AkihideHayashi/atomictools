@@ -1,5 +1,7 @@
+README.md
 setup.py
 atomictools/__init__.py
+atomictools/distance.py
 atomictools/lattice.py
 atomictools/tools.py
 atomictools/vasp.py

@@ -1,8 +1,8 @@
-from atomictools.tools import contract, expand, read_matrix, skip_until, read_aslongas, fmt
-
 import numpy as np
 from multimethod import multimethod
 import io
+
+from atomictools.tools import contract, expand, read_matrix, skip_until, read_aslongas, fmt
 
 
 @np.vectorize
@@ -26,6 +26,7 @@ def read_poscar_switch(f):
 
 @multimethod
 def read_poscar(f: io.TextIOWrapper):
+    """system, cell, symbols, coordinate, selective"""
     system = next(f).strip()
     unit = float(next(f).strip())
     cell = read_matrix(f, 3).astype(np.float64)
