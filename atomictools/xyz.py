@@ -19,3 +19,18 @@ def read_xyz(path: str):
     with open(path) as f:
         return read_xyz(f)
     return
+
+
+@multimethod
+def write_xyz(path: str, comment, symbols, positions):
+    with open(path, "w") as f:
+        write_xyz(f, comment, symbols, positions)
+    return
+
+
+@multimethod
+def write_xyz(f: io.TextIOWrapper, comment, symbols, positions):
+    f.write("{}\n".format(min(map(len, (symbols, positions)))))
+    f.write(comment + "\n")
+    for s, p in zip(symbols, positions):
+        f.write("{}  {}  {}  {}\n".format(s, *fmt("{:>16.10}", p)))

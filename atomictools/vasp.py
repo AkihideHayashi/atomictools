@@ -5,6 +5,32 @@ import io
 from atomictools.tools import contract, expand, read_matrix, skip_until, read_aslongas, fmt
 
 
+class Poscar(object):
+    def __init__(self, title, unit, lattice, symbols, coordinates, selective_dynamics):
+        self.title = title
+        self.unit = unit
+        self.lattice = lattice
+        self.symbols = symbols
+        self.coordinates = coordinates
+        self.selective_dynamics = selective_dynamics
+
+    @staticmethod
+    def read(f):
+        return Poscar(*read_poscar(f))
+
+    def write(self, f, cartesian):
+        write_poscar(
+            f,
+            self.title,
+            self.unit,
+            self.lattice,
+            self.symbols,
+            cartesian,
+            self.coordinates,
+            self.selective_dynamics
+            )
+
+
 @np.vectorize
 def bool_to_TF(x):
     return str(x)[0]
@@ -27,7 +53,7 @@ def read_poscar_switch(f):
 @multimethod
 def read_poscar(f: io.TextIOWrapper):
     """system, cell, symbols, coordinate, selective"""
-    system = next(f).strip()
+    title = next(f).strip()
     unit = float(next(f).strip())
     cell = read_matrix(f, 3).astype(np.float64)
     sym = next(f).split()
@@ -43,7 +69,7 @@ def read_poscar(f: io.TextIOWrapper):
         selectived = np.logical_or(ct[:, 3:6] == "T", ct[:, 3:6] == "t")
     else:
         selectived = np.full((len(symbols), 3), True)
-    return system, cell * unit, symbols, coordinate * unit, selectived
+    return title, unit, cell * unit, symbols, coordinate * unit, selectived
 
 
 @multimethod
@@ -53,8 +79,8 @@ def read_poscar(path: str):
     return
 
 
-@multimethod    
-def write_poscar(f: io.TextIOWrapper, lattice, symbols, positions, selective, title, cart, unit):
+@multimethod
+def write_poscar(f: io.TextIOWrapper, title, unit, lattice, symbols, cartesian, positions, selective):
     f.write(f"{title}\n")
     f.write(f"{unit}\n")
     for l in lattice / unit:
@@ -67,7 +93,7 @@ def write_poscar(f: io.TextIOWrapper, lattice, symbols, positions, selective, ti
         sel = bool_to_TF(selective)
     else:
         sel = None
-    if cart:
+    if cartesian:
         f.write("Cartesian\n")
         pos = fmt("{:<016.10}", positions / unit)
     else:
@@ -83,9 +109,9 @@ def write_poscar(f: io.TextIOWrapper, lattice, symbols, positions, selective, ti
 
 
 @multimethod
-def write_poscar(path: str, lattice, symbols, positions, selective, title, cart, unit):
+def write_poscar(path: str, title, unit, lattice, symbols, cartesian, positions, selective):
     with open(path, "w") as f:
-        write_poscar(f, lattice, symbols, positions, selective, title, cart, unit)
+        write_poscar(f, title, unit, lattice, symbols, cartesian, positions, selective)
     return
 
 
