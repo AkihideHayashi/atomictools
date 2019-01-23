@@ -167,3 +167,48 @@ def read_outcar_trajectory(f: io.TextIOWrapper):
 def read_outcar_trajectory(path: str):
     with open(path) as f:
         return read_outcar_trajectory(f)
+
+
+class Doscar(object):
+    def __init__(self, Emax, Emin, NEDOS, Efermi, DOS, PDOS):
+        self.e_max = Emax
+        self.e_min = Emin
+        self.nedos = NEDOS
+        self.e_fermi = Efermi
+        self.dos = DOS
+        self.pdos = PDOS
+    
+    @staticmethod
+    def read(path):
+        return Doscar(*read_doscar(path))
+    
+
+@multimethod
+def read_doscar(f: io.TextIOWrapper):
+    (number_of_ions_including_empty_spheres,
+     number_of_ions,
+     including_pdos,
+     NCDIJ) = map(int, next(f).split())
+    (volume_of_unit_cell,
+     la, lb, lc,
+     POTIM) = map(float, next(f).split())
+    TEBEG = float(next(f))
+    next(f)
+    SYSTEM = next(f)
+    Emax, Emin, FEDOS, Efermi, _ = map(float, next(f).split())
+    NEDOS = int(FEDOS)
+    DOS = read_matrix(f, NEDOS).astype(np.float64)
+    if including_pdos:
+        PDOS = []
+        for _ in range(number_of_ions):
+            next(f)
+            PDOS.append(read_matrix(f, NEDOS).astype(np.float64))
+    else:
+        PDOS = None
+    return Emax, Emin, NEDOS, Efermi, DOS, PDOS
+
+
+@multimethod
+def read_doscar(path: str):
+    with open(path) as f:
+        return read_doscar(f)

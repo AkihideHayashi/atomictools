@@ -2,6 +2,7 @@ from pathlib import Path
 import subprocess as sub
 import tempfile
 import os
+import io
 from multimethod import multimethod
 from atomictools.xyz import write_xyz
 
