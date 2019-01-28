@@ -1,3 +1,4 @@
+# pylint: disable=E0102
 from pathlib import Path
 import subprocess as sub
 import tempfile
@@ -5,6 +6,8 @@ import os
 import io
 from multimethod import multimethod
 from atomictools.xyz import write_xyz
+from atomictools.tools import read_matrix
+import numpy as np
 
 def levelup(s):
     n = 4
@@ -105,13 +108,13 @@ def write_gen(path, symbols, coordinates, lattice=None, fractional=False):
 def read_a_results_tag(f: io.TextIOWrapper):
     name, tds = next(f).split()
     _, t, d, s = tds.split(":")
-    dim = int(d)
+    _ = int(d)
     shape = tuple(map(int, s.split(",")))
     if t == "real":
         dtype = np.float64
     else:
         raise RuntimeError()
-    vec = read_matrix(f, int(np.ceil(np.prod(shape) / 3))).astype(np.float64)
+    vec = read_matrix(f, int(np.ceil(np.prod(shape) / 3))).astype(dtype)
     return name, vec.reshape(shape)
 
 

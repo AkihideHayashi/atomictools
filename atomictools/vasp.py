@@ -1,3 +1,4 @@
+# pylint: disable=E0102
 import numpy as np
 from multimethod import multimethod
 import io
@@ -211,6 +212,7 @@ class Doscar(object):
 
 @multimethod
 def read_doscar(f: io.TextIOWrapper):
+    # pylint: disable=W0612
     (number_of_ions_including_empty_spheres,
      number_of_ions,
      including_pdos,

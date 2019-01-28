@@ -1,3 +1,4 @@
+# pylint: disable=E0102
 import numpy as np
 from multimethod import multimethod
 import io

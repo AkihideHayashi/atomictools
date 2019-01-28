@@ -1,3 +1,5 @@
+# pylint: disable=E0102
+
 import numpy as np
 from numpy.linalg import norm
 from multimethod import multimethod
