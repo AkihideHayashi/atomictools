@@ -30,6 +30,32 @@ class Poscar(object):
             self.selective_dynamics
             )
 
+        
+class OutcarTrajectory(object):
+    def __init__(self, symbols, lattices, positions, forces, energies):
+        self.symbols = symbols
+        self.lattices = lattices
+        self.positions = positions
+        self.forces = forces
+        self.energies = energies
+    
+    def __getitem__(self, item):
+        if isinstance(item, slice):
+            z = zip(self.lattices[item], self.positions[item], self.forces[item], self.energies[item])
+            return [(self.symbols, *a) for a in z]
+        else:
+            return self.symbols, self.lattices[item], self.positions[item], self.forces[item], self.energies[item]
+        
+    def __iter__(self):
+        return iter((self.symbols, l, p, f, e) for (l, p, f, e) in zip(self.lattices, self.positions, self.forces, self.energies))
+    
+    def __len__(self):
+        return len(self.lattices)
+    
+    @staticmethod
+    def read(path):
+        return OutcarTrajectory(*read_outcar_trajectory(path))
+    
 
 @np.vectorize
 def bool_to_TF(x):
@@ -160,7 +186,7 @@ def read_outcar_trajectory(f: io.TextIOWrapper):
             forces.append(fo)
             lattices.append(la)
     except StopIteration:
-        return lattices, symbols, positions, forces, energies
+        return symbols, lattices, positions, forces, energies
 
 
 @multimethod
