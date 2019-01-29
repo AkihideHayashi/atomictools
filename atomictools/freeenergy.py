@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from numpy import exp, log, pi
 from numpy.linalg import eigh, det
 import numpy as np
