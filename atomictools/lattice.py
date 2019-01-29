@@ -1,26 +1,26 @@
 import numpy as np
+from numpy.linalg import norm
+from numpy.linalg import det
 
 
-def same_vectors(ps, qs):
-    for p in ps:
-        for q in qs:
-            if np.allclose(p, q):
-                break
-        else:
-            return False
-    return True
+def new_points(ps):
+    already = []
+    for i in range(len(ps)):
+        for j in range(i + 1):
+            for k in range(j + 1):
+                for si in range(-1, 2):
+                    for sj in range(-1, 2):
+                        for sk in range(-1, 2):
+                            ret = si * ps[i] + sj * ps[j] + sk * ps[k]
+                            if allclose(ret, [0, 0, 0]):
+                                continue
+                            for a in already:
+                                if allclose(ret, a):
+                                    break
+                            else:
+                                already.append(ret)
+                                yield ret
 
-
-def insert_vector(ps, v):
-    for i, p in enumerate(ps):
-        if allclose(p, v):
-            return
-        if p[0] > v[0]:
-            ps.insert(i, v)
-            return
-    ps.append(v)
-    
-    
 def allclose(p, v):
     if abs(p[0] - v[0]) < 1E-8:
         if abs(p[1] - v[1]) < 1E-8:
@@ -29,51 +29,109 @@ def allclose(p, v):
     return False
 
 
-def new_points(ps):
-    ret = []
-    for i in range(len(ps)):
-        for j in range(i+1):
-            for k in range(j+1):
-                for si in range(-1, 2):
-                    for sj in range(-1, 2):
-                        for sk in range(-1, 2):
-                            new = si * ps[i] + sj * ps[j] + sk * ps[k]
-                            if np.any(np.abs(new) > 1E-8):
-                                insert_vector(ret, new)
-    return ret
+def sort_by_xyz(l):
+    return np.array(list(map(list, sorted(map(tuple, l)))))
 
 
-def wigner_seitz_step(ps):
-    ws = []
-    for i in range(len(ps)):
-        wsv = True
-        for w in ws:
-            if np.allclose(w, ps[i]):
-                wsv = False
-        for j in range(len(ps)):
-            if (ps[j] @ (ps[i] - ps[j])) >= 0.0 and not np.allclose(ps[i], ps[j]):
-                wsv = False
-        if wsv:
-            insert_vector(ws, ps[i])
-    return np.array(ws)
-
-
-def wigner_seitz(ps):
-    """Calculate lattice points which construct wigner seitz cell"""
-    ws = wigner_seitz_step(new_points(ps))
+def primitive_cell(cell):
+    new = cell.copy()
     while True:
-        ws_old = ws
-        ws = wigner_seitz_step(new_points(ws))
-        if same_vectors(ws, ws_old):
+        old = new.copy()
+        cand = list(sorted(sort_by_xyz(new_points(new)), key=norm))
+        new = [cand[0]]
+        for c in cand[1:]:
+            
+            if len(new) == 1 and abs(c @ new[0] / (norm(c) * norm(new[0]))) < 0.999:
+                new.append(c)
+            if len(new) == 2 and det(np.array(new + [c])) > 1E-8:
+                new.append(c)
+                break
+            else:
+                continue
+        if np.allclose(sort_by_xyz(new), sort_by_xyz(old)):
+            return np.array(new)
+
+
+def adaptable_for_wigner_seitz(r, ws):
+    if allclose(r, [0, 0, 0]):
+        return False
+    if ws.shape[0] == 0:
+        return True
+    else:
+        for w in ws:
+            if not allclose(w, r) and w @ r >= w @ w:
+                return False
+        return True
+        # return np.all(ws @ r <= np.sum(ws * ws, axis=1))
+
+
+def wigner_seitz(lattice):
+    ws = primitive_cell(lattice)
+    while True:
+        ws_old = ws.copy()
+        cand = np.array(list(new_points(ws)))
+        ws = []
+        for c in cand:
+            if adaptable_for_wigner_seitz(c, cand):
+                ws.append(c)
+        ws = sort_by_xyz(ws)
+        if ws.shape == ws_old.shape and np.allclose(ws, ws_old):
             return ws
         
 
-def move_to_wigner_seitz(rs, ws):
+def move_to_wigner_seitz_matrix(rs, ws):
     """r in weigner sitz cell"""
-    n = np.clip(np.ceil(rs @ ws.T / np.sum(ws * ws, axis=1) - 0.5), a_max=0, a_min=None)
-    return rs - n @ ws
+    cont = True
+    while cont:
+        cont = False
+        for w in ws:
+            n = np.clip(np.ceil(rs @ w / (w @ w) - 0.5), a_max=None, a_min=0)
+            if np.any(n > 0):
+                rs -= np.outer(n, w)
+                cont = True
+
+
+def move_to_wigner_seitz_vector(r, ws):
+    """r in weigner sitz cell"""
+    cont = True
+    while cont:
+        cont = False
+        for w in ws:
+            n = np.clip(np.ceil(((w @ r) / (w @ w)) - 0.5), a_max=None, a_min=0)
+            if np.any(n > 0):
+                r -= n * w
+                cont = True
+
+
+def move_to_wigner_seitz(rs, ws):
+    if rs.ndim == 1:
+        move_to_wigner_seitz_vector(rs, ws)
+    elif rs.ndim == 2:
+        move_to_wigner_seitz_matrix(rs, ws)
+    else:
+        raise NotImplemented()
+
+
+def in_wigner_seitz_matrix(rs, ws):
+    return np.all(rs @ ws.T <= 0.5 * np.sum(ws * ws, axis=1), axis=1)
+
+
+def in_wigner_seitz_vector(r, ws):
+    return np.all(ws @ r <= 0.5 * np.sum(ws * ws, axis=1))
 
 
 def in_wigner_seitz(rs, ws):
     """rs in ws"""
-    return np.all(rs @ ws.T <= 0.5 * np.sum(ws * ws, axis=1), axis=1)
+    if rs.ndim == 1:
+        return in_wigner_seitz_vector(rs, ws)
+    elif rs.ndim == 2:
+        return in_wigner_seitz_matrix(rs, ws)
+    else:
+        raise NotImplemented
+
+
+# def move_to_wigner_seitz(rs, ws):
+#     """r in weigner sitz cell"""
+#     n = np.clip(np.ceil(rs @ ws.T / np.sum(ws * ws, axis=1) - 0.5), a_max=0, a_min=None)
+#     return rs - n @ ws
+

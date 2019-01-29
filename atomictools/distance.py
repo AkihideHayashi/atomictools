@@ -14,4 +14,7 @@ def distance_matrix(pos1: np.ndarray, pos2: np.ndarray):
 
 @multimethod
 def distance_matrix(pos1: np.ndarray, pos2: np.ndarray, ws: np.ndarray):
-    return np.array([[norm(move_to_wigner_seitz(p - q, ws)) for q in pos2] for p in pos1])
+    def tows(r):
+        move_to_wigner_seitz(r, ws)
+        return r
+    return np.array([[norm(tows(p - q)) for q in pos2] for p in pos1])
