@@ -164,20 +164,14 @@ def write_poscar(f: io.TextIOWrapper, title, unit, lattice, symbols, cartesian, 
 
 
 @multimethod
-def write_poscar(path: str, title, unit, lattice, symbols, cartesian, positions, selective):
-    with open(path, "w") as f:
-        write_poscar(f, title, unit, lattice, symbols, cartesian, positions, selective)
-    return
-
-
-@multimethod
-def write_poscar(path: str, title, unit, lattice, symbols, cartesian, positions, selective, mode):
+def write_poscar(path: str, title, unit, lattice, symbols, cartesian, positions, selective, mode=None):
     with open(path, "w") as f:
         write_poscar(f, title, unit, lattice, symbols, cartesian, positions, selective)
         f.write("\n")
-        pos = fmt("{:<016.10}", mode / unit)
-        for p in pos:
-            f.write("  ".join(p) + "\n")
+        if mode is not None:
+            mod = fmt("{:<016.10}", mode / unit)
+            for m in mod:
+                f.write("  ".join(m) + "\n")
     return
 
 
@@ -275,6 +269,15 @@ def read_outcar_frequency(path: str):
 
 
 class Doscar(object):
+    s = 1
+    py = 2
+    pz = 3
+    px = 4
+    dxy = 5
+    dyz = 6
+    dz2r2 = 7
+    dxz = 8
+    dx2y2 = 9
     def __init__(self, Emax, Emin, NEDOS, Efermi, DOS, PDOS):
         self.e_max = Emax
         self.e_min = Emin
@@ -309,6 +312,7 @@ def read_doscar(f: io.TextIOWrapper):
         for _ in range(number_of_ions):
             next(f)
             PDOS.append(read_matrix(f, NEDOS).astype(np.float64))
+        PDOS = np.array(PDOS)
     else:
         PDOS = None
     return Emax, Emin, NEDOS, Efermi, DOS, PDOS
