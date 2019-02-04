@@ -4,6 +4,7 @@ from multimethod import multimethod
 import io
 
 from atomictools.tools import contract, expand, read_matrix, skip_until, read_aslongas, fmt
+from atomictools.unit.au import kayser
 
 
 class Poscar(object):
@@ -19,17 +20,30 @@ class Poscar(object):
     def read(f):
         return Poscar(*read_poscar(f))
 
-    def write(self, f, cartesian):
-        write_poscar(
-            f,
-            self.title,
-            self.unit,
-            self.lattice,
-            self.symbols,
-            cartesian,
-            self.coordinates,
-            self.selective_dynamics
-            )
+    def write(self, f, cartesian, mode=None):
+        if mode is not None:
+            write_poscar(
+                f,
+                self.title,
+                self.unit,
+                self.lattice,
+                self.symbols,
+                cartesian,
+                self.coordinates,
+                self.selective_dynamics,
+                mode
+                )
+        else:
+            write_poscar(
+                f,
+                self.title,
+                self.unit,
+                self.lattice,
+                self.symbols,
+                cartesian,
+                self.coordinates,
+                self.selective_dynamics
+                )
 
         
 class OutcarTrajectory(object):
@@ -56,6 +70,20 @@ class OutcarTrajectory(object):
     @staticmethod
     def read(path):
         return OutcarTrajectory(*read_outcar_trajectory(path))
+
+
+class OutcarFrequency(object):
+    def __init__(self, lattice, symbols, im, en, coordinates, frequencies):
+        self.lattice = lattice
+        self.symbols = symbols
+        self.im = im
+        self.en = en
+        self.coordinates = coordinates
+        self.frequencies = frequencies
+
+    @staticmethod
+    def read(path):
+        return OutcarFrequency(*read_outcar_frequency(path))
     
 
 @np.vectorize
@@ -142,6 +170,17 @@ def write_poscar(path: str, title, unit, lattice, symbols, cartesian, positions,
     return
 
 
+@multimethod
+def write_poscar(path: str, title, unit, lattice, symbols, cartesian, positions, selective, mode):
+    with open(path, "w") as f:
+        write_poscar(f, title, unit, lattice, symbols, cartesian, positions, selective)
+        f.write("\n")
+        pos = fmt("{:<016.10}", mode / unit)
+        for p in pos:
+            f.write("  ".join(p) + "\n")
+    return
+
+
 def read_outcar_a_position_force(f, n):
     skip_until(f, "POSITION                                       TOTAL-FORCE (eV/Angst)")
     next(f)
@@ -194,6 +233,45 @@ def read_outcar_trajectory(f: io.TextIOWrapper):
 def read_outcar_trajectory(path: str):
     with open(path) as f:
         return read_outcar_trajectory(f)
+
+
+def read_outcar_a_frequency(f: io.TextIOWrapper, n):
+    head = next(f).split()
+    if head[1] == "f":
+        body = head[3:]
+        im = False
+    elif head[1] == "f/i=":
+        body = head[2:]
+        im = True
+    else:
+        raise NotImplementedError()
+    energy = float(body[4]) * kayser
+    next(f)
+    pos_freq = read_matrix(f, n).astype(np.float64)
+    next(f)
+    return im, energy, pos_freq
+
+
+@multimethod
+def read_outcar_frequency(f: io.TextIOWrapper):
+    skip_until(f, "INCAR:")
+    s = [line.split()[2] for line in read_aslongas(f, "POTCAR:")[:-1]]
+    n = [int(w) for w in skip_until(f, "ions per type =").split("=")[1].split()]
+    symbols = expand(n, s)
+    n = len(symbols)
+    lattice = read_outcar_a_lattice(f)
+    degree_of_freedom = int(skip_until(f, "Degree of freedom:").split()[-1])
+    skip_until(f, "Eigenvectors and eigenvalues of the dynamical matrix")
+    for _ in range(3):
+        next(f)
+    im, en, pf = map(np.array, zip(*[read_outcar_a_frequency(f, n) for _ in range(degree_of_freedom)]))
+    return lattice, symbols, im, en, pf[:, :, :3], pf[:, :, 3:]
+    
+
+@multimethod
+def read_outcar_frequency(path: str):
+    with open(path) as f:
+        return read_outcar_frequency(f)
 
 
 class Doscar(object):

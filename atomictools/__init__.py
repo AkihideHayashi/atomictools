@@ -6,7 +6,7 @@
 # import atomictools.unit as unit
 # import atomictools.freeenergy as freeenergy
 
-from atomictools.vasp import read_poscar, read_outcar_trajectory, write_poscar, Poscar, OutcarTrajectory
+from atomictools.vasp import read_poscar, read_outcar_trajectory, read_outcar_frequency, read_doscar, write_poscar, Poscar, OutcarTrajectory, Doscar, OutcarFrequency
 from atomictools.lattice import wigner_seitz, move_to_wigner_seitz, in_wigner_seitz
 from atomictools.xyz import read_xyz, write_xyz
 from atomictools.distance import distance_matrix
