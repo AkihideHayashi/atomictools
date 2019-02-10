@@ -109,7 +109,7 @@ def move_to_wigner_seitz(rs, ws):
     elif rs.ndim == 2:
         move_to_wigner_seitz_matrix(rs, ws)
     else:
-        raise NotImplemented()
+        raise NotImplementedError()
 
 
 def in_wigner_seitz_matrix(rs, ws):
@@ -127,7 +127,23 @@ def in_wigner_seitz(rs, ws):
     elif rs.ndim == 2:
         return in_wigner_seitz_matrix(rs, ws)
     else:
-        raise NotImplemented
+        raise NotImplementedError()
+
+
+@np.vectorize
+def move_to_01(x):
+    while True:
+        if x < 0:
+            x += 1
+        elif 1 <= x:
+            x -= 1
+        else:
+            return x
+
+
+def move_to_lattice(coordinate, lattice):
+    return (lattice.T @ move_to_01(np.linalg.solve(lattice.T, coordinate.T))).T
+
 
 
 # def move_to_wigner_seitz(rs, ws):

@@ -5,6 +5,8 @@ import io
 
 from atomictools.tools import contract, expand, read_matrix, skip_until, read_aslongas, fmt
 from atomictools.unit.au import kayser
+from atomictools.lattice import move_to_lattice
+from atomictools.atomic import atomic_number, mass, mass_da
 
 
 class Poscar(object):
@@ -15,6 +17,18 @@ class Poscar(object):
         self.symbols = symbols
         self.coordinates = coordinates
         self.selective_dynamics = selective_dynamics
+
+    @property
+    def numbers(self):
+        return atomic_number(self.symbols)
+
+    @property
+    def mass(self):
+        return mass[self.numbers]
+
+    @property
+    def mass_da(self):
+        return mass_da[self.numbers]
 
     @staticmethod
     def read(f):
@@ -45,6 +59,22 @@ class Poscar(object):
                 self.selective_dynamics
                 )
 
+    def move_to_lattice(self):
+        self.coordinates = move_to_lattice(self.coordinates, self.lattice)
+    
+    def extend(self, symbols, coordinates, selective_dynamics=None):
+        self.coordinates = np.array(self.coordinates.tolist() + coordinates.tolist())
+        self.symbols = np.array(self.symbols.tolist() + symbols.tolist())
+        if self.selective_dynamics is not None:
+            self.selective_dynamics = np.array(self.selective_dynamics.tolist() + selective_dynamics.tolist())
+
+    def sort(self, key=lambda scd: atomic_number(scd[0]), **kwargs):
+        """key should take scd = (symbol, coordinate, [selective_dynamics])
+        """
+        if self.selective_dynamics is None:
+            self.symbols, self.coordinates = [np.array(list(x)) for x in zip(*sorted(zip(self.symbols, self.coordinates), key=key, **kwargs))]
+        else:
+            self.symbols, self.coordinates, self.selective_dynamics = [np.array(list(x)) for x in zip(*sorted(zip(self.symbols, self.coordinates, self.selective_dynamics), key=key, **kwargs))]
         
 class OutcarTrajectory(object):
     def __init__(self, symbols, lattices, positions, forces, energies):
@@ -123,7 +153,8 @@ def read_poscar(f: io.TextIOWrapper):
     if selective:
         selectived = np.logical_or(ct[:, 3:6] == "T", ct[:, 3:6] == "t")
     else:
-        selectived = np.full((len(symbols), 3), True)
+        # selectived = np.full((len(symbols), 3), True)]
+        selectived = None
     return title, unit, cell * unit, symbols, coordinate * unit, selectived
 
 
