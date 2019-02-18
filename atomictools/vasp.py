@@ -3,8 +3,8 @@ import numpy as np
 from multimethod import multimethod
 import io
 
-from atomictools.tools import contract, expand, read_matrix, skip_until, read_aslongas, fmt
-from atomictools.unit.au import kayser
+from atomictools.tools import contract, expand, read_matrix, skip_until, read_aslongas, fmt, withopen
+from atomictools.unit.au import kayser, eV, angstrom
 from atomictools.lattice import move_to_lattice
 from atomictools.atomic import atomic_number, mass, mass_da
 
@@ -103,10 +103,11 @@ class OutcarTrajectory(object):
 
 
 class OutcarFrequency(object):
-    def __init__(self, lattice, symbols, im, en, coordinates, frequencies):
+    def __init__(self, lattice, symbols, en0, im, en, coordinates, frequencies):
         self.lattice = lattice
         self.symbols = symbols
         self.im = im
+        self.en0 = en0
         self.en = en
         self.coordinates = coordinates
         self.frequencies = frequencies
@@ -277,26 +278,27 @@ def read_outcar_a_frequency(f: io.TextIOWrapper, n):
     return im, energy, pos_freq
 
 
-@multimethod
+@withopen
 def read_outcar_frequency(f: io.TextIOWrapper):
     skip_until(f, "INCAR:")
-    s = [line.split()[2] for line in read_aslongas(f, "POTCAR:")[:-1]]
-    n = [int(w) for w in skip_until(f, "ions per type =").split("=")[1].split()]
+    s = []
+    while True:
+        line = next(f)
+        if "POTCAR:" in line:
+            s.append(line.split()[2])
+        if "ions per type =" in line:
+            n = [int(w) for w in line.split("=")[1].split()]
+            break
     symbols = expand(n, s)
     n = len(symbols)
     lattice = read_outcar_a_lattice(f)
+    en0 = float(skip_until(f, "energy  without entropy").split()[-1]) * eV
     degree_of_freedom = int(skip_until(f, "Degree of freedom:").split()[-1])
     skip_until(f, "Eigenvectors and eigenvalues of the dynamical matrix")
     for _ in range(3):
         next(f)
     im, en, pf = map(np.array, zip(*[read_outcar_a_frequency(f, n) for _ in range(degree_of_freedom)]))
-    return lattice, symbols, im, en, pf[:, :, :3], pf[:, :, 3:]
-    
-
-@multimethod
-def read_outcar_frequency(path: str):
-    with open(path) as f:
-        return read_outcar_frequency(f)
+    return lattice, symbols, en0, im, en, pf[:, :, :3] * angstrom, pf[:, :, 3:]
 
 
 class Doscar(object):
@@ -353,3 +355,23 @@ def read_doscar(f: io.TextIOWrapper):
 def read_doscar(path: str):
     with open(path) as f:
         return read_doscar(f)
+
+
+@withopen
+def read_core_state_eigenenergies(f):
+    line = skip_until(f, "the core state eigenenergies are")
+    i = 1
+    ret = []
+    while True:
+        line = next(f).strip()
+        if line:
+            splt = line.split()
+            if splt[0] == "{}-".format(i):
+                i += 1
+                ret.append(dict())
+                splt = splt[1:]
+            for j in range(len(splt) // 2):
+                ret[-1][splt[j * 2]] = float(splt[j * 2 + 1])
+        else:
+            break
+    return ret

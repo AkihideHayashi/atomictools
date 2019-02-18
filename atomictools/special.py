@@ -14,3 +14,11 @@ def spherical_harmonics(l, m, theta, phi):
 
 def hydrogenic(n, l, m, z, r, theta, phi):
     return hydrogenic_R(n, l, z, r) * spherical_harmonics(l, m, theta, phi)
+
+
+def fermi(e, mu, beta):
+    return 1 / (np.exp(beta * (e - mu)) + 1)
+
+
+def lorentzian(x, x0, gamma):
+    return gamma / ((x - x0) ** 2 + gamma * gamma) / np.pi

@@ -1,4 +1,6 @@
 import numpy as np
+from functools import wraps
+
 
 def expand(num, val):
     return np.array([v for n, v in zip(num, val) for _ in range(n)])
@@ -36,3 +38,14 @@ def read_aslongas(f, val):
 @np.vectorize
 def fmt(f, x):
     return f.format(x)
+
+
+def withopen(func):
+    @wraps(func)
+    def wrapper(path, *args, **kwargs):
+        if isinstance(path, str):
+            with open(path) as f:
+                return func(f, *args, **kwargs)
+        else:
+            return func(f, *args, **kwargs)
+    return wrapper

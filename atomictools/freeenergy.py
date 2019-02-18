@@ -15,19 +15,19 @@ def gibbs_translation(m_2pihbarhbar, beta, p):
     return - (3 / 2 * log(m_2pihbarhbar) - 5 / 2 * log(beta) - log(p)) / beta
 
 
-def energy_vibration(khbarc, beta):
-    t = khbarc * beta
+def energy_vibration(hbaromega, beta):
+    t = hbaromega * beta
     return np.sum(t * (0.5 + exp(-t) / (1 - exp(-t)))) / beta
 
 
-def entropy_vibration(khbarc, beta):
-    t = khbarc * beta
+def entropy_vibration(hbaromega, beta):
+    t = hbaromega * beta
     et = exp(-t)
     return np.sum((t * et) / (1 - et) - log(1 - et))
 
 
-def helmholtz_vibration(khbarc, beta):
-    t = khbarc * beta # theta / T
+def helmholtz_vibration(hbaromega, beta):
+    t = hbaromega * beta # theta / T
     return np.sum(1 / 2 * t + log(1 - exp(-t))) / beta
 
 
