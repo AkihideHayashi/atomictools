@@ -75,7 +75,22 @@ class Poscar(object):
             self.symbols, self.coordinates = [np.array(list(x)) for x in zip(*sorted(zip(self.symbols, self.coordinates), key=key, **kwargs))]
         else:
             self.symbols, self.coordinates, self.selective_dynamics = [np.array(list(x)) for x in zip(*sorted(zip(self.symbols, self.coordinates, self.selective_dynamics), key=key, **kwargs))]
+
+    def extend_cell(self, n):
+        extend_cell(self, n)
         
+
+def extend_cell(pos, n):
+    for i, ni in enumerate(n):
+        lattice = pos.lattice.copy()[i]
+        coordinates = pos.coordinates.copy()
+        symbols = pos.symbols.copy()
+        selective = pos.selective_dynamics
+        for j in range(1, ni):
+            pos.extend(symbols, coordinates + lattice * j, selective)
+        pos.lattice[i] *= ni 
+
+
 class OutcarTrajectory(object):
     def __init__(self, symbols, lattices, positions, forces, energies):
         self.symbols = symbols

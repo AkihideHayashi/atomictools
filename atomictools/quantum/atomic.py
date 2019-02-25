@@ -9,7 +9,7 @@ def radius_grid(g: np.ndarray, beta: float):
     return beta * g / (N - g)
 
 def first_derivative_radius_grid(g: np.ndarray, r: np.ndarray, beta: float):
-    """the first derivative of radius_grid"""
+    """the first derivative of radius_grid dgdr"""
     N = len(g)
     return N * beta / ((r + beta) ** 2)
 
@@ -18,7 +18,7 @@ def second_derivative_radius_grid(g: np.ndarray, r: np.ndarray, beta: float):
     N = len(g)
     return - 2 * N * beta / ((r + beta) ** 3)
 
-def coefficients(e: float, l: int, r: np.ndarray, vr: np.ndarray, dvrdr: np.ndarray):
+def coefficients(e: float, l: int, r: np.ndarray, vr: np.ndarray, dvrdr: np.ndarray, relativity=True):
     """coefficients for relational radial shrodinger equation
     u = rR
     -u'' - 1/(2mc^2) * dv/dr * (du/dr - u/r) + [l(l+1)/r^2 + 2m(v-e)]u = 0
@@ -27,10 +27,10 @@ def coefficients(e: float, l: int, r: np.ndarray, vr: np.ndarray, dvrdr: np.ndar
     
     if alpha == 0: it becomes classical form
     """
-    a2 = alpha * alpha
+    a2 = alpha * alpha if relativity else 0.0
     mr = r - 0.5 * a2 * (vr - e * r)
     mr2 = mr * 2
-    relative_common = a2 / mr2 * (r * dvrdr - vr)
+    relative_common = a2 / mr2 * (r * dvrdr - vr) if relativity else np.full_like(mr, 0.0)
     C2 = - r * r
     C1 = - relative_common * r
     C0 = l*(l+1) + mr2 * (vr - e * r) + relative_common
@@ -55,7 +55,7 @@ def integral_factor(C: np.ndarray):
     return np.array([fm, f0, fp])
 
 def shoot(e: float, l: int, r: np.ndarray, vr: np.ndarray, dvrdr: np.ndarray,
-          dxdr: np.ndarray, d2xdr2: np.ndarray, u: np.ndarray):
+          dxdr: np.ndarray, d2xdr2: np.ndarray, u: np.ndarray, relativity=True):
     """shoot(e, l, r, vr, dvrdr, dxdr, d2xdr2, u)
     generate wavefunction from 0 and from inf
     overwrite u to true form
@@ -65,7 +65,7 @@ def shoot(e: float, l: int, r: np.ndarray, vr: np.ndarray, dvrdr: np.ndarray,
 
     this routine is not compatible for positive big eigenvalue.
     """
-    Cp = coefficients(e, l, r, vr, dvrdr)
+    Cp = coefficients(e, l, r, vr, dvrdr, relativity)
     C = coefficients_grid(Cp, dxdr, d2xdr2)
     F = integral_factor(C)
     
@@ -104,12 +104,12 @@ def shoot(e: float, l: int, r: np.ndarray, vr: np.ndarray, dvrdr: np.ndarray,
 
 def find_a_eigensystem(e0: float, l: int, r: np.ndarray,
                        vr: np.ndarray, dvrdr: np.ndarray,
-                       dxdr: np.ndarray, d2xdr2: np.ndarray, u: np.ndarray):
+                       dxdr: np.ndarray, d2xdr2: np.ndarray, u: np.ndarray, relativity=True):
     """returns eigenvalue
     overwrite u by eigenfunction
     """
     def inner(e):
-        return shoot(e, l, r, vr, dvrdr, dxdr, d2xdr2, u)
+        return shoot(e, l, r, vr, dvrdr, dxdr, d2xdr2, u, relativity)
     return root(inner, e0)
 
 
