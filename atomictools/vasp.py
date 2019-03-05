@@ -1,5 +1,7 @@
 # pylint: disable=E0102
 import numpy as np
+from numpy import pi
+from numpy.linalg import det
 from multimethod import multimethod
 import io
 
@@ -7,7 +9,9 @@ from atomictools.tools import contract, expand, read_matrix, skip_until, read_as
 from atomictools.unit.au import kayser, eV, angstrom
 from atomictools.lattice import move_to_lattice
 from atomictools.atomic import atomic_number, mass, mass_da
-
+from atomictools.freeenergy import gibbs_translation, helmholtz_rotation, helmholtz_vibration, tensor_of_inertia
+from atomictools.freeenergy import energy_rotation, energy_translation, energy_vibration
+from atomictools.freeenergy import entropy_rotation, entropy_translation, entropy_vibration
 
 class Poscar(object):
     def __init__(self, title, unit, lattice, symbols, coordinates, selective_dynamics):
@@ -118,19 +122,63 @@ class OutcarTrajectory(object):
 
 
 class OutcarFrequency(object):
-    def __init__(self, lattice, symbols, en0, im, en, coordinates, frequencies):
+    def __init__(self, lattice, symbols, Uel, im, en, coordinates, frequencies, atomic, sigma):
         self.lattice = lattice
         self.symbols = symbols
         self.im = im
-        self.en0 = en0
+        self.Uel = Uel
         self.en = en
         self.coordinates = coordinates
         self.frequencies = frequencies
+        self.numbers = atomic_number(self.symbols)
+        self.mass = mass[self.numbers]
+        self.I = tensor_of_inertia(self.coordinates[0], self.mass)
+        self.total_mass = sum(self.mass)
+        self.is_linear = abs(det(self.I)) < 1E-8
+        self.vib_free = len(self.en) - 5 if self.is_linear else len(self.en) - 6
+        self.atomic = atomic
+        self.sigma = sigma
 
     @staticmethod
-    def read(path):
-        return OutcarFrequency(*read_outcar_frequency(path))
+    def read(path, atomic, sigma):
+        return OutcarFrequency(*read_outcar_frequency(path), atomic, sigma)
+
+    def free_energy(self, beta, pressure=None):
+        if self.atomic:
+            G_tra = gibbs_translation(self.total_mass / (2 * pi), beta, pressure)
+            A_rot = helmholtz_rotation(self.I * 2, beta, self.sigma)
+            A_vib = helmholtz_vibration(self.en[:self.vib_free], beta)
+            return self.Uel + G_tra + A_rot + A_vib
+        else:
+            A_vib = helmholtz_vibration(self.en, beta)
+            return self.Uel + A_vib
+
+    def internal_energy(self, beta, pressure=None):
+        if self.atomic:
+            U_tra = energy_translation(beta)
+            U_rot = energy_rotation(self.I * 2, beta)
+            U_vib = energy_vibration(self.en[:self.vib_free], beta)
+            return self.Uel + U_tra + U_rot + U_vib
+        else:
+            U_vib = energy_vibration(self.en, beta)
+            return self.Uel + U_vib
+
+    def enthalpy(self, beta, pressure=None):
+        if self.atomic:
+            return self.internal_energy(beta, pressure) + 1 / beta
+        else:
+            return self.internal_energy(beta, pressure)
     
+    def entropy(self, beta, pressure=None):
+        if self.atomic:
+            S_tra = entropy_translation(self.total_mass / (2 * pi), beta, pressure)
+            S_rot = entropy_rotation(self.I * 2, beta, self.sigma)
+            S_vib = entropy_vibration(self.en[:self.vib_free], beta)
+            return S_tra + S_rot + S_vib
+        else:
+            S_vib = entropy_vibration(self.en, beta)
+            return S_vib
+
 
 @np.vectorize
 def bool_to_TF(x):

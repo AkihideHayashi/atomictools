@@ -56,11 +56,19 @@ def entropy_rotation(I2_hbar, beta, sigma):
 
 
 def helmholtz_rotation(I2_hbar, beta, sigma):
+    """I2_hbar: I * 2 / hbar
+    sigma: normaly 1, linear 2
+    """
     t = det(I2_hbar / beta)
     e, _ = eigh(I2_hbar / beta)
     if t > 1E-8:
         return (-1/2 * np.log(np.pi * np.prod(t)) + np.log(sigma)) / beta
     elif np.abs(e[1] - e[2]) < 1E-8:
-        return - np.log(e[1] / sigma) / beta
+        return -1 * np.log(e[1] / sigma) / beta
     else:
         raise NotImplementedError()
+
+
+def sum_helmholtz(fs, beta):
+    mf = (max(fs) + min(fs)) / 2
+    return -1 * np.log(sum(np.exp(-(beta * (f - mf))) for f in fs)) / beta + mf
