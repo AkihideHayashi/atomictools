@@ -356,7 +356,7 @@ def read_outcar_frequency(f: io.TextIOWrapper):
     n = len(symbols)
     lattice = read_outcar_a_lattice(f)
     en0 = float(skip_until(f, "energy  without entropy").split()[-1]) * eV
-    degree_of_freedom = int(skip_until(f, "Degree of freedom:").split()[-1])
+    degree_of_freedom = int(skip_until(f, "Degree of freedom:").split('/')[-1])
     skip_until(f, "Eigenvectors and eigenvalues of the dynamical matrix")
     for _ in range(3):
         next(f)
