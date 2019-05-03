@@ -1,5 +1,6 @@
 import numpy as np
 from atomictools.tools import read_matrix
+from atomictools.unit.au import angstrom
 
 class AXSF(object):
     def __init__(self):
@@ -67,11 +68,11 @@ class AXSF(object):
             self.force.append(np.array(force))
     
     def read_primvec(self, f):
-        self.primvec.append(read_matrix(f, 3).astype(np.float64))
+        self.primvec.append(read_matrix(f, 3).astype(np.float64) * angstrom)
         return next(f).split()
     
     def read_convvec(self, f):
-        self.convvec.append(read_matrix(f, 3).astype(np.float64))
+        self.convvec.append(read_matrix(f, 3).astype(np.float64) * angstrom)
         return next(f).split()
     
     def read_primcoord(self, fp):
@@ -96,4 +97,4 @@ def read_atomic_line(line):
         dx, dy, dz = 0.0, 0.0, 0.0
     elif len(line) == 7:
         n, x, y, z, dx, dy, dz = line
-    return int(n), np.array([x, y, z]).astype(np.float64), np.array([dx, dy, dz]).astype(np.float64)
+    return int(n), np.array([x, y, z]).astype(np.float64) * angstrom, np.array([dx, dy, dz]).astype(np.float64) / angstrom
