@@ -1,5 +1,4 @@
 import numpy as np
-from multimethod import multimethod
 
 def split_next(f):
     while True:
@@ -21,7 +20,7 @@ def read_cp2k_section(section, f):
             else:
                 ret.append(read_cp2k_section(splitted, f))
         else:
-            ret.append(tuple(splitted))
+            ret.append(splitted)
             
 class CP2K(object):
     def __init__(self, sections):
@@ -88,5 +87,16 @@ class Section(object):
                     return c
             else:
                 if c[0] == key:
-                    return c[1:]
-        raise KeyError(key)
+                    return c[1]
+        raise KeyError()
+        
+    def __setitem__(self, key, val):
+        for c in self.contents:
+            if isinstance(c, Section):
+                if c.section[0] == key:
+                    raise NotImplementedError("Section.__setitem__(selction) not implemented")
+            else:
+                if c[0] == key:
+                    c[1] = val
+                    return
+        self.contents.append(" ".join([key, val]))
