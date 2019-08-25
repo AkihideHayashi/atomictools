@@ -1,102 +1,94 @@
-import numpy as np
+import re
 
-def split_next(f):
+def parse_next(f):
     while True:
-        line = next(f).strip().split("#")[0].split(None, 1)
-        if line:
-            return line
-        else:
+        ret = re.split("[!#]", next(f))[0].strip().split(None, 1)
+        if len(ret) == 0:
             continue
+        elif len(ret) == 1:
+            ret.append("")
+            return ret
+        elif len(ret) == 2:
+            return ret
+        else:
+            assert False
             
-def read_cp2k_section(section, f):
+def read_cp2k_section(sub_key, sub_val, f):
     ret = []
     while True:
-        splitted = split_next(f)
-        if splitted[0][0] == '&':
-            if splitted[0][1:4] == 'END':
-                if len(splitted) > 1:
-                    assert splitted[1].strip() == section[0][1:].strip()
-                return Section(section, ret)
+        key, val = parse_next(f)
+        if key[0] == '&':
+            if key[:4] == '&END':
+                assert not val or val.split()[0] == sub_key, f"{sub_key}: {val.split()[0]}"
+                return Subsection(sub_key, sub_val, ret)
             else:
-                ret.append(read_cp2k_section(splitted, f))
+                ret.append(read_cp2k_section(key[1:], val, f))
         else:
-            ret.append(splitted)
-            
-class CP2K(object):
-    def __init__(self, sections):
-        self.sections = sections
+            ret.append(Keyword(key, val))
 
-    def __repr__(self):
-        return "\n".join(s.dump() for s in self.sections)
-
-    def __getitem__(self, key):
-        for c in self.sections:
-            if c.section[0] == key:
+class CP2K(list):
+    def __init__(self, children):
+        super().__init__(children)
+    
+    def search(self, key):
+        for c in self:
+            if c.key.lower() == key.lower():
                 return c
-        raise KeyError()
-        
+        return None
+    
+    def __getitem__(self, key):
+        if isinstance(key, int):
+            return super().__getitem__(key)
+        get = self.search(key)
+        if get:
+            return get
+        else:
+            raise KeyError(key)
+            
+    def __getattr__(self, attr):
+        return self[attr]
+    
+    def dump(self):
+        ret = []
+        for c in self:
+            ret.extend([f"{d}" for d in c.dump()])
+        return ret
+    
     @staticmethod
     def read(f):
-        if isinstance(f, str):
-            with open(f) as fp:
-                return CP2K.read(fp)
         ret = []
         while True:
             try:
-                section = split_next(f)
+                key, val = parse_next(f)
+                ret.append(read_cp2k_section(key[1:], val, f))
             except StopIteration:
-                break
-            if section[0][0] == '&':
-                ret.append(read_cp2k_section(section, f))
-            else:
                 break
         return CP2K(ret)
     
-    def write(self, f):
-        if isinstance(f, str):
-            with open(f, 'w') as fp:
-                self.write(fp)
-        else:
-            f.write(repr(self))
-
-class Section(object):
-    def __init__(self, section, contents):
-        self.section = section
-        self.contents = contents
-    
-    def dump(self, join=True):
-        section = " ".join(self.section)
-        contents = []
-        for c in self.contents:
-            if isinstance(c, Section):
-                contents.extend(c.dump(False))
-            else:
-                contents.append(" ".join(c))
-        ret = [section] + ["  " + c for c in contents] + [f"&END {self.section[0][1:]}"]
-        if join:
-            return "\n".join(ret)
-        else:
-            return ret
     def __repr__(self):
-        return self.dump()
-
-    def __getitem__(self, key):
-        for c in self.contents:
-            if isinstance(c, Section):
-                if c.section[0] == key:
-                    return c
-            else:
-                if c[0] == key:
-                    return c[1]
-        raise KeyError()
+        return '\n'.join(self.dump())
+            
+class Keyword(object):
+    def __init__(self, key, val):
+        self.key = key
+        self.val = val
         
-    def __setitem__(self, key, val):
-        for c in self.contents:
-            if isinstance(c, Section):
-                if c.section[0] == key:
-                    raise NotImplementedError("Section.__setitem__(selction) not implemented")
-            else:
-                if c[0] == key:
-                    c[1] = val
-                    return
-        self.contents.append(" ".join([key, val]))
+    def dump(self):
+        return [f"{self.key} {self.val}"]
+    
+    def __repr__(self):
+        return f"{self.key} {self.val}"
+            
+class Subsection(CP2K):
+    def __init__(self, key, val, children):
+        super().__init__(children)
+        self.key = key
+        self.val = val
+        
+    def dump(self):
+        ret = []
+        ret.append(f"&{self.key} {self.val}")
+        for c in self:
+            ret.extend([f"  {d}" for d in c.dump()])
+        ret.append(f"&END {self.key}")
+        return ret
